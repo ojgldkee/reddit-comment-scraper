@@ -158,6 +158,7 @@ def scrape_post(
         rows.append({
             **info,
             "comment_id": str(comment.id),
+            "author": str(comment.author) if getattr(comment, "author", None) else "[deleted]",
             "parent_id": str(getattr(comment, "parent_id", "")),
             "comment": body.strip(),
             "score": int(getattr(comment, "score", 0) or 0),
