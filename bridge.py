@@ -50,6 +50,7 @@ class Collector:
         self.lock = threading.RLock()
         self.pending = deque()
         self.seen = set()
+        self.failed_ids = set()
         self.rows = []
         self.events = []
         self.running = False
@@ -77,7 +78,10 @@ class Collector:
             raise ValueError("Invalid Reddit post ID.")
         with self.lock:
             if post_id in self.seen:
-                return {"queued": False, "reason": "already-added", **self._status()}
+                if post_id in self.failed_ids:
+                    self.failed_ids.remove(post_id)
+                else:
+                    return {"queued": False, "reason": "already-added", **self._status()}
             if len(self.seen) >= 250:
                 raise ValueError("Session limit: clear the results before adding more than 250 threads.")
             self.seen.add(post_id)
@@ -97,6 +101,7 @@ class Collector:
             with self.lock:
                 if self.generation == generation:
                     self.failed += len(self.pending)
+                    self.failed_ids.update(item.post_id for item in self.pending)
                     self._event(f"Cannot start Reddit API: {str(exc)[:150]}")
                     self.pending.clear()
                     self.running = False
@@ -123,6 +128,7 @@ class Collector:
                     if self.generation != generation:
                         return
                     self.failed += 1
+                    self.failed_ids.add(item.post_id)
                     self._event(f"Error on {item.post_id}: {str(exc)[:180]}")
             else:
                 with self.lock:
@@ -161,6 +167,8 @@ class Collector:
     def stop(self):
         with self.lock:
             self.stopped = True
+            for item in self.pending:
+                self.seen.discard(item.post_id)
             self.pending.clear()
             self._event("Stopped: no new threads will be started.")
             return self._status()
@@ -172,6 +180,7 @@ class Collector:
             self.generation += 1
             self.pending.clear()
             self.seen.clear()
+            self.failed_ids.clear()
             self.rows.clear()
             self.events.clear()
             self.stopped = True
