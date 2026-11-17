@@ -4,7 +4,7 @@
   if (window.top !== window.self || document.getElementById("rr-research-overlay")) return;
 
   const MATCH = /\/comments\/([a-z0-9]{3,12})(?:\/|$|\?)/i;
-  const CARDS = "shreddit-post, [data-testid='post-container'], article, [data-post-id], .Post";
+  const CARDS = "shreddit-post, [data-testid='post-container'], [data-testid='post'], article, [data-post-id], .Post, .thing.link";
   let selecting = false;
   let saved = [];
   let timer = null;
