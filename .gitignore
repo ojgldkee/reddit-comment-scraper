@@ -1,0 +1,20 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+# Python & editor files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
+.idea/
+.vscode/
+# Exports / research results (do not commit Reddit comments)
+reddit-comments*.csv
+reddit-comments*.json
+reddit-themes*.csv
+reddit-themes*.json
+reddit-research-summary*.md
