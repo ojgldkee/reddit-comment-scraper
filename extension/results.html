@@ -1,80 +1,90 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reddit Research · Results</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reddit Research | Scraper</title>
 <style>
-:root{color-scheme:dark}
-*{box-sizing:border-box}
-body{font:14px/1.55 system-ui,-apple-system,sans-serif;background:#eaf0f3;color:#122031;margin:0}
-nav{display:flex;align-items:center;gap:12px;padding:12px max(20px,calc((100vw - 1100px)/2));background:#fefefe;color:#172332;border-bottom:1px solid #d4e0e5}
-nav strong{font-size:18px} .logo{color:#ff4e2c;font-size:22px}
-main{max-width:1100px;margin:22px auto;padding:0 16px 70px}
-h1{font-size:29px;line-height:1.1;letter-spacing:-.05em;margin:3px 0 8px}
-p{margin-top:0;color:#576679}
+:root{color-scheme:dark;--bg:#0b1018;--panel:#141e2a;--panel2:#192637;--edge:#2c3c50;--text:#f2f6fb;--muted:#99abc1;--hot:#ff6846;--good:#66d3aa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 system-ui,-apple-system,sans-serif}
+header{border-bottom:1px solid var(--edge);background:#0f1621;position:sticky;top:0;z-index:3}
+.header{max-width:1180px;margin:auto;padding:15px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.brand{font-size:17px;font-weight:850;letter-spacing:-.045em}.brand span{color:var(--hot)}
+.subtle{font-size:12px;color:var(--muted)}
+main{max-width:1180px;margin:0 auto;padding:26px 22px 65px}
+h1{margin:0 0 3px;font-size:28px;letter-spacing:-.055em}h2{font-size:17px;letter-spacing:-.025em;margin:0 0 5px}
+p{color:var(--muted);margin:0 0 15px}
+.steps{display:flex;flex-wrap:wrap;gap:9px;margin:22px 0}
+.step{background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:10px 13px;font-size:12px}
+.step strong{color:var(--hot);padding-right:6px}
+.grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.8fr);gap:17px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:17px;padding:19px;margin-bottom:17px;box-shadow:0 8px 18px #0002}
+.cardhead{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.kicker{font-size:11px;color:var(--muted);font-weight:750;letter-spacing:.06em;text-transform:uppercase}
+button{border:1px solid #3d5065;background:#27384d;color:#f7fafe;font:750 12px/1.3 system-ui;border-radius:9px;padding:10px 13px;cursor:pointer}
+button:hover{filter:brightness(1.12)}button.primary{background:var(--hot);border-color:var(--hot);color:white}
+button.ghost{background:transparent}button.warning{color:#ffafa5}
+button:disabled{opacity:.48;cursor:not-allowed}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
-button{cursor:pointer;padding:10px 14px;border:1px solid #cad8df;border-radius:10px;background:white;color:#1a2938;font:700 13px system-ui}
-button:hover{background:#f5fbfe}
-button.primary{background:#fa583a;border-color:#fa583a;color:white}
-button.danger{color:#ce3d33}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0 14px}
-.card{border-radius:14px;background:#fff;border:1px solid #d8e3e8;padding:17px;margin-bottom:13px;box-shadow:0 2px 9px #3040500a}
-.caption{text-transform:uppercase;letter-spacing:.09em;color:#748293;font-size:10px;font-weight:800}
-.number{font-size:30px;font-weight:820;color:#132333;letter-spacing:-.05em}
-.progress{background:#e4ebef;border-radius:12px;height:10px;overflow:hidden;margin:13px 0}
-.bar{height:100%;background:#fb5b3c;width:0%;transition:width .3s}
-.log{font:12px/1.7 ui-monospace,Consolas,monospace;background:#0b1823;color:#c0e8dc;padding:16px;border-radius:10px;max-height:300px;overflow-y:auto;white-space:pre-wrap}
-.controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
-select,input{border-radius:9px;border:1px solid #ccd7de;background:white;color:#122031;padding:9px;font:inherit;min-width:160px}
-input{flex:1}
-table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}
-td,th{border-bottom:1px solid #edf1f4;text-align:left;padding:12px;vertical-align:top}
-th{font-size:11px;color:#7d8d9d;text-transform:uppercase}
-td.comment{max-width:560px;white-space:pre-wrap;overflow-wrap:anywhere}
-.tag{background:#fff0eb;color:#a34935;border-radius:6px;padding:3px 6px;font-size:11px;margin:2px;display:inline-block}
-a{color:#1e668d}
-.status{font-size:13px;color:#536577}
-.error{color:#b62525}
-.good{color:#287d62}
-@media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}nav{padding:12px 16px}
-td.comment{max-width:300px}}
-</style>
-</head>
+.label{color:#dce6f0;font-size:12px;font-weight:750;display:block;margin:12px 0 6px}
+input,textarea,select{color:var(--text);background:#0c1521;border:1px solid #3d5065;border-radius:9px;padding:10px 12px;width:100%;font:13px/1.5 system-ui}
+textarea{min-height:79px;resize:vertical}input:focus,textarea:focus{outline:2px solid #ff684666;outline-offset:1px}
+.status{font-size:12px;color:var(--muted)}.status.good{color:var(--good)}.status.error{color:#ff9c90}
+.list{max-height:360px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin:13px 0}
+.post{display:flex;align-items:start;gap:10px;padding:11px;background:#101a27;border:1px solid #293b50;border-radius:11px}
+.post .description{flex:1;min-width:0}.post b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.post a{font-size:11px;color:#a4c8eb}.post button{padding:6px 9px;font-size:12px}
+.empty{padding:28px 12px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed #37506a;border-radius:12px}
+.numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:15px}
+.stat{background:#101a27;border:1px solid #283a4d;border-radius:10px;padding:12px}
+.stat .value{font-size:25px;line-height:1.3;font-weight:850;font-variant-numeric:tabular-nums}
+.stat .name{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bar{height:8px;background:#28394e;border-radius:9px;overflow:hidden;margin:14px 0 8px}
+.fill{height:100%;width:0%;background:var(--hot);transition:width .2s}
+.log{white-space:pre-wrap;max-height:200px;overflow:auto;border-radius:10px;padding:13px;background:#09111b;color:#b9d9c8;font:12px/1.7 ui-monospace,monospace;margin-top:11px}
+.results{margin-top:4px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}.filters input{flex:2;min-width:220px}.filters select{flex:1;min-width:200px}
+.comment{border:1px solid #2b3e52;border-radius:10px;padding:13px;background:#101a27;margin-bottom:8px}
+.comment p{white-space:pre-wrap;overflow-wrap:anywhere;color:#edf4fa;font-size:13px;margin:8px 0}
+.comment a{color:#a1c9f4;text-decoration:none}.comment .meta{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:11px}
+.tags{display:flex;gap:5px;flex-wrap:wrap}.tag{padding:3px 7px;border-radius:6px;background:#2a3748;color:#c5d6e8;font-size:10px}
+a{color:#a1c9f4}details{margin-top:12px}summary{cursor:pointer;font-weight:750;color:#bed5e8}
+footer{color:#718aa2;font-size:11px;margin-top:24px}
+@media(max-width:790px){.grid{grid-template-columns:1fr}.header{padding:13px 16px}main{padding:20px 14px}.numbers{grid-template-columns:repeat(3,1fr)}}
+</style></head>
 <body>
-<nav><span class="logo">●</span><strong>reddit comment research</strong><span style="margin-left:auto;font-size:12px;color:#607183">Local · Manual · No AI credits</span></nav>
+<header><div class="header"><div class="brand"><span>●</span> Reddit Research <span class="subtle" style="margin-left:8px">Local scraper</span></div><a target="_blank" rel="noopener" href="https://www.reddit.com/">Open Reddit</a></div></header>
 <main>
-<h1>Live research results</h1>
-<p>Click posts on Reddit while selection mode is enabled. They will appear here as the local collector processes them.</p>
-<div class="actions">
-<button class="primary" id="csv">Download spreadsheet CSV</button>
-<button id="json">Download JSON</button>
-<button id="markdown">Download summary</button>
-<button id="txt">Plain text</button>
-<button id="copy">Copy all comments</button>
-<button class="danger" id="stop">Stop</button>
-<button class="danger" id="reset">Reset</button>
-</div>
-<div id="status" class="status" style="margin-top:14px" aria-live="polite">Connecting to local collector…</div>
-<section class="grid">
-<div class="card"><div class="caption">Comments scraped</div><div class="number" id="comments">0</div></div>
-<div class="card"><div class="caption">Posts selected</div><div class="number" id="selected">0</div></div>
-<div class="card"><div class="caption">Threads finished</div><div class="number" id="completed">0</div></div>
-<div class="card"><div class="caption">Queued / failed</div><div class="number" id="queued">0 / 0</div></div>
+<h1>Reddit comment scraper</h1>
+<p>Save links in Reddit, then scrape them here. Nothing runs until you click Scrape selected posts.</p>
+<div class="steps"><div class="step"><strong>01</strong> Click posts on Reddit</div><div class="step"><strong>02</strong> Scrape selected posts</div><div class="step"><strong>03</strong> Review & export comments</div></div>
+<div class="grid">
+<div>
+<section class="card"><div class="cardhead"><div><h2>Selected Reddit posts</h2><div class="status">Links saved by your browser extension</div></div><span class="kicker" id="link-count">0 links</span></div>
+<div class="list" id="post-list"><div class="empty">No links yet. Open Reddit and click Select posts.</div></div>
+<div class="actions"><button id="copy-links" class="ghost">Copy all links</button><button id="clear-links" class="ghost warning">Clear links</button></div>
+<details><summary>Or paste Reddit post links</summary><label class="label" for="paste-links">One or more links</label><textarea id="paste-links" placeholder="https://www.reddit.com/r/example/comments/abc123/title/"></textarea><button id="add-links" style="margin-top:8px">Add pasted links</button></details>
 </section>
-<div class="card"><strong id="progress-label">Waiting for selected posts</strong><div class="progress"><div class="bar" id="bar"></div></div><div class="status">Reddit API rate limits apply. More-comment requests determine how deeply replies are loaded.</div></div>
-<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-<strong>Scraper • live log</strong><span class="status" id="run-state">Idle</span></div>
-<div class="log" id="log">No work queued yet.</div></div>
-<div class="card"><h2 style="font-size:18px;margin:0 0 10px">Comment explorer</h2>
-<div class="controls">
-<select id="theme"><option value="">All themes</option></select>
-<input type="search" id="search" placeholder="Search within the latest collected comments">
+<section class="card"><div class="cardhead"><div><h2>Scrape comments</h2><div class="status">One click starts the queued threads using approved Reddit API access</div></div></div>
+<div class="actions"><button id="scrape" class="primary">Scrape selected posts</button><button id="stop" class="ghost">Stop</button><button id="clear-results" class="ghost warning">Reset results</button></div>
+<div class="numbers"><div class="stat"><div class="value" id="comments">0</div><div class="name">Comments</div></div><div class="stat"><div class="value" id="completed">0</div><div class="name">Threads done</div></div><div class="stat"><div class="value" id="queued">0</div><div class="name">Queued</div></div></div>
+<div class="bar"><div class="fill" id="progress"></div></div>
+<div class="status" id="activity">Nothing scraped yet.</div>
+<details><summary>View activity log</summary><div class="log" id="log">No jobs queued.</div></details>
+</section>
 </div>
-<div class="status" id="row-count" style="margin-bottom:10px">Showing latest comments as they arrive.</div>
-<div style="overflow-x:auto"><table><thead><tr><th>Comment & source</th><th>Theme tags</th><th>Score</th></tr></thead><tbody id="rows"></tbody></table></div>
+<aside>
+<section class="card"><h2>Collector connection</h2><div id="connection" class="status">Checking local connection…</div>
+<p class="status" style="margin-top:10px">Saving links is free and needs no credentials. Scraping requires the local Python bridge and Reddit-approved API access.</p>
+<details id="connection-details"><summary>Connection setup</summary><label for="bridge-token" class="label">Pairing code from <code>python bridge.py</code></label>
+<input type="password" id="bridge-token" placeholder="Paste pairing code">
+<button id="save-token" style="margin-top:8px">Save & connect</button>
+<div class="status" style="margin-top:8px">The API client ID and secret belong in your local <code>.env</code> file, not here.</div>
+</details></section>
+<section class="card"><h2>Export your research</h2><p class="status">Download all comments after extraction.</p>
+<div class="actions"><button id="csv">CSV</button><button id="json">JSON</button><button id="markdown">Summary</button><button id="txt">Text</button></div></section>
+</aside>
 </div>
-<div class="status">Theme tags are keyword-matched research leads, not verified beliefs. Read original discussion context before using quotes or claims. API access and commercial use require Reddit approval.</div>
-</main>
-<script src="results.js"></script>
-</body>
-</html>
+<section class="card results"><div class="cardhead"><div><h2>Collected comments</h2><div class="status" id="result-count">Previewing the latest comments; exports include the full collection.</div></div></div>
+<div class="filters"><input id="search" type="search" placeholder="Search comments or thread titles…"><select id="theme"><option value="">All research themes</option></select></div>
+<div id="comments-list"><div class="empty">Scrape selected posts to see comments here.</div></div></section>
+<div id="message" class="status" role="status"></div>
+<footer>Only click-triggered collection · No paid AI calls · Use within Reddit's approved API permissions and retention rules.</footer>
+</main><script src="results.js"></script></body></html>
