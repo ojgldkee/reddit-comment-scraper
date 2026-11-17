@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reddit Research · Results</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{font:14px/1.55 system-ui,-apple-system,sans-serif;background:#eaf0f3;color:#122031;margin:0}
+nav{display:flex;align-items:center;gap:12px;padding:12px max(20px,calc((100vw - 1100px)/2));background:#fefefe;color:#172332;border-bottom:1px solid #d4e0e5}
+nav strong{font-size:18px} .logo{color:#ff4e2c;font-size:22px}
+main{max-width:1100px;margin:22px auto;padding:0 16px 70px}
+h1{font-size:29px;line-height:1.1;letter-spacing:-.05em;margin:3px 0 8px}
+p{margin-top:0;color:#576679}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{cursor:pointer;padding:10px 14px;border:1px solid #cad8df;border-radius:10px;background:white;color:#1a2938;font:700 13px system-ui}
+button:hover{background:#f5fbfe}
+button.primary{background:#fa583a;border-color:#fa583a;color:white}
+button.danger{color:#ce3d33}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0 14px}
+.card{border-radius:14px;background:#fff;border:1px solid #d8e3e8;padding:17px;margin-bottom:13px;box-shadow:0 2px 9px #3040500a}
+.caption{text-transform:uppercase;letter-spacing:.09em;color:#748293;font-size:10px;font-weight:800}
+.number{font-size:30px;font-weight:820;color:#132333;letter-spacing:-.05em}
+.progress{background:#e4ebef;border-radius:12px;height:10px;overflow:hidden;margin:13px 0}
+.bar{height:100%;background:#fb5b3c;width:0%;transition:width .3s}
+.log{font:12px/1.7 ui-monospace,Consolas,monospace;background:#0b1823;color:#c0e8dc;padding:16px;border-radius:10px;max-height:300px;overflow-y:auto;white-space:pre-wrap}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+select,input{border-radius:9px;border:1px solid #ccd7de;background:white;color:#122031;padding:9px;font:inherit;min-width:160px}
+input{flex:1}
+table{border-collapse:collapse;width:100%;background:#fff;font-size:13px}
+td,th{border-bottom:1px solid #edf1f4;text-align:left;padding:12px;vertical-align:top}
+th{font-size:11px;color:#7d8d9d;text-transform:uppercase}
+td.comment{max-width:560px;white-space:pre-wrap;overflow-wrap:anywhere}
+.tag{background:#fff0eb;color:#a34935;border-radius:6px;padding:3px 6px;font-size:11px;margin:2px;display:inline-block}
+a{color:#1e668d}
+.status{font-size:13px;color:#536577}
+.error{color:#b62525}
+.good{color:#287d62}
+@media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}nav{padding:12px 16px}
+td.comment{max-width:300px}}
+</style>
+</head>
+<body>
+<nav><span class="logo">●</span><strong>reddit comment research</strong><span style="margin-left:auto;font-size:12px;color:#607183">Local · Manual · No AI credits</span></nav>
+<main>
+<h1>Live research results</h1>
+<p>Click posts on Reddit while selection mode is enabled. They will appear here as the local collector processes them.</p>
+<div class="actions">
+<button class="primary" id="csv">Download spreadsheet CSV</button>
+<button id="json">Download JSON</button>
+<button id="markdown">Download summary</button>
+<button id="txt">Plain text</button>
+<button id="copy">Copy all comments</button>
+<button class="danger" id="stop">Stop</button>
+<button class="danger" id="reset">Reset</button>
+</div>
+<div id="status" class="status" style="margin-top:14px" aria-live="polite">Connecting to local collector…</div>
+<section class="grid">
+<div class="card"><div class="caption">Comments scraped</div><div class="number" id="comments">0</div></div>
+<div class="card"><div class="caption">Posts selected</div><div class="number" id="selected">0</div></div>
+<div class="card"><div class="caption">Threads finished</div><div class="number" id="completed">0</div></div>
+<div class="card"><div class="caption">Queued / failed</div><div class="number" id="queued">0 / 0</div></div>
+</section>
+<div class="card"><strong id="progress-label">Waiting for selected posts</strong><div class="progress"><div class="bar" id="bar"></div></div><div class="status">Reddit API rate limits apply. More-comment requests determine how deeply replies are loaded.</div></div>
+<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+<strong>Scraper • live log</strong><span class="status" id="run-state">Idle</span></div>
+<div class="log" id="log">No work queued yet.</div></div>
+<div class="card"><h2 style="font-size:18px;margin:0 0 10px">Comment explorer</h2>
+<div class="controls">
+<select id="theme"><option value="">All themes</option></select>
+<input type="search" id="search" placeholder="Search within the latest collected comments">
+</div>
+<div class="status" id="row-count" style="margin-bottom:10px">Showing latest comments as they arrive.</div>
+<div style="overflow-x:auto"><table><thead><tr><th>Comment & source</th><th>Theme tags</th><th>Score</th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+<div class="status">Theme tags are keyword-matched research leads, not verified beliefs. Read original discussion context before using quotes or claims. API access and commercial use require Reddit approval.</div>
+</main>
+<script src="results.js"></script>
+</body>
+</html>
