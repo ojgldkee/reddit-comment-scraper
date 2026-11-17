@@ -1,198 +1,173 @@
-/* Click-to-collect Reddit UI. No request runs until the user clicks a post. */
+/* Reddit link grabber: selecting a post SAVES ITS LINK, and never scrapes.
+   Scraping begins only after clicking "Scrape selected" on the dashboard. */
 (() => {
   "use strict";
-  if (window.top !== window.self || document.getElementById("rr-research-overlay")) return;
-
-  const MATCH = /\/comments\/([a-z0-9]{3,12})(?:\/|$|\?)/i;
-  const CARDS = "shreddit-post, [data-testid='post-container'], [data-testid='post'], article, [data-post-id], .Post, .thing.link";
+  if (window.top !== window.self || document.getElementById("rr-link-grabber")) return;
+  const POST_RE = /\/comments\/([a-z0-9]{3,12})(?:\/|$|\?)/i;
+  const CARD = "shreddit-post, [data-testid='post-container'], [data-testid='post'], article, [data-post-id], .Post, .thing.link";
   let selecting = false;
-  let saved = [];
-  let timer = null;
+  let selected = [];
+  let mutationObserver = null;
+  let refreshScheduled = false;
+  const styles = document.createElement("style");
+  styles.textContent = [
+    ".rr-post-picked{outline:2px solid #ff6846!important;outline-offset:3px!important;border-radius:8px!important;}",
+    ".rr-selection-on shreddit-post,.rr-selection-on [data-testid='post-container'],",
+    ".rr-selection-on article,.rr-selection-on .Post{cursor:crosshair!important;}"
+  ].join("");
+  document.documentElement.appendChild(styles);
 
-  function parsePost(value) {
+  function parsePost(urlText) {
+    if (!urlText) return null;
     try {
-      const url = new URL(value, location.href);
+      const url = new URL(urlText, location.href);
       if (!/(^|\.)reddit\.com$/i.test(url.hostname)) return null;
-      const m = url.pathname.match(MATCH);
-      return m ? { post_id: m[1].toLowerCase(),
-        url: "https://www.reddit.com/comments/" + m[1].toLowerCase() + "/" } : null;
+      const found = url.pathname.match(POST_RE);
+      if (!found) return null;
+      return {post_id:found[1].toLowerCase(),url:"https://www.reddit.com/comments/"+found[1].toLowerCase()+"/"};
     } catch (_) { return null; }
   }
-  function fromClick(target) {
+  function postFromNode(target) {
     if (!(target instanceof Element)) return null;
-    const candidates = [];
-    const link = target.closest("a[href*='/comments/']");
-    if (link) candidates.push(link);
-    let current = target;
-    for (let depth = 0; current && depth < 10; depth++, current = current.parentElement) {
-      if (current.matches?.(CARDS)) candidates.push(current);
+    const anchors = [];
+    const closestLink = target.closest("a[href*='/comments/']");
+    if (closestLink) anchors.push(closestLink);
+    let ancestor = target;
+    for (let i=0;ancestor && i<10;i++,ancestor=ancestor.parentElement) {
+      if (ancestor.matches?.(CARD)) anchors.push(ancestor);
     }
-    for (const el of candidates) {
-      for (const value of [el.getAttribute("permalink"), el.getAttribute("href"),
+    for (const el of anchors) {
+      const possible = [
+        el.getAttribute("permalink"),
+        el.getAttribute("href"),
         el.getAttribute("data-permalink"),
-        el.querySelector?.("a[href*='/comments/']")?.getAttribute("href")]) {
-        const found = value && parsePost(value);
-        if (found) {
-          const title = el.querySelector?.("h3, h2, [slot='title'], [data-testid='post-title']")?.textContent;
-          return { ...found, title: (title || target.textContent || found.post_id).trim().slice(0, 180) };
-        }
+        el.querySelector?.("a[href*='/comments/']")?.getAttribute("href")
+      ];
+      for (const link of possible) {
+        const post = parsePost(link);
+        if (!post) continue;
+        const card = el.closest(CARD) || el;
+        const heading = card.querySelector?.("h3, h2, [slot='title'], [data-testid='post-title']");
+        return {...post,title:(heading?.textContent || document.title || post.post_id).trim().slice(0,170),card};
       }
     }
     return null;
   }
+
   const host = document.createElement("div");
-  host.id = "rr-research-overlay";
-  host.style.cssText = "position:fixed;bottom:20px;left:18px;z-index:2147483647;";
-  const dom = host.attachShadow({ mode: "open" });
-  dom.innerHTML = [
-    '<style>*{box-sizing:border-box} .panel{background:#0d1522;color:#f5f7fc;',
-    'font:13px/1.4 system-ui,sans-serif;border:1px solid #334154;border-radius:15px;',
-    'padding:12px;max-width:min(94vw,640px);box-shadow:0 14px 45px #0009}',
-    '.active{border-color:#ff7557;box-shadow:0 0 0 2px #ff755744,0 14px 45px #0009}',
-    '.head{display:flex;align-items:center;gap:10px;margin-bottom:10px}',
-    '.brand{font-weight:800}.brand:before{content:"●";color:#ff5938;padding-right:7px}',
-    '.counts{margin-left:auto;font-variant-numeric:tabular-nums;color:#bbc7d5}',
-    '.buttons{display:flex;gap:6px;flex-wrap:wrap}',
-    'button{font:700 12px/1 system-ui,sans-serif;color:white;background:#273548;',
-    'border:1px solid #455a75;border-radius:9px;padding:9px 10px;cursor:pointer}',
-    'button:hover{background:#3a4f6a} button.primary{background:#ff5938;border-color:#ff5938}',
-    'button[disabled]{opacity:.45;cursor:not-allowed}',
-    '.hint{margin-top:9px;color:#a9bfd9;font-size:12px;min-height:17px}',
-    '.hint.error{color:#ffbcae}.hint.good{color:#9fe8c7}',
-    '.tiny{margin-top:4px;font-size:10px;color:#91a2b8}</style>',
-    '<div class="panel"><div class="head"><span class="brand">Reddit Research</span>',
-    '<span class="counts" id="counts">0 posts • 0 comments</span></div>',
-    '<div class="buttons">',
-    '<button class="primary" id="toggle">Start selecting</button>',
-    '<button id="current">Collect this thread</button>',
-    '<button id="copy">Copy links</button><button id="retry">Queue all</button>',
-    '<button id="results">Results / exports</button>',
-    '<button id="stop">Stop</button><button id="reset">Reset</button>',
-    '</div><div class="hint" id="hint">Click Start selecting, then click any Reddit post.</div>',
-    '<div class="tiny">Manual-only • no AI calls • approved Reddit API access required</div></div>'
+  host.id = "rr-link-grabber";
+  host.style.cssText = "position:fixed;bottom:18px;left:18px;z-index:2147483647;";
+  const shadow = host.attachShadow({mode:"open"});
+  shadow.innerHTML = [
+    '<style>*{box-sizing:border-box} .dock{font:13px system-ui,-apple-system,sans-serif;color:#f5f7fb;background:#101722;',
+    'border:1px solid #3a485b;border-radius:16px;padding:10px;max-width:calc(100vw - 36px);',
+    'box-shadow:0 10px 35px #0008} .row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}',
+    '.brand{font-weight:800;margin-right:4px;white-space:nowrap}.brand b{color:#ff6846}',
+    '.count{background:#263549;color:#d8e4ef;border-radius:18px;padding:6px 9px;font-size:12px;white-space:nowrap}',
+    'button{border:1px solid #43536a;border-radius:9px;background:#273549;color:#fff;',
+    'font:700 12px system-ui,sans-serif;padding:9px 11px;cursor:pointer}',
+    'button:hover{background:#38495f}button.primary{background:#ff6846;border-color:#ff6846}',
+    '.on{border-color:#ff6846}.hint{color:#a9bdcf;font-size:11px;padding-top:8px;line-height:1.5}',
+    '.collapsed .actions,.collapsed .hint{display:none}.collapsed .row{gap:9px}',
+    '</style><div class="dock"><div class="row"><span class="brand"><b>●</b> Reddit Grabber</span>',
+    '<span class="count" id="count">0 selected</span><span class="actions">',
+    '<button id="mode" class="primary">Select posts</button>',
+    '<button id="current" style="display:none">Add this post</button>',
+    '<button id="open">Open scraper</button><button id="copy">Copy links</button>',
+    '</span><button id="collapse" title="Minimize toolbar" aria-label="Minimize toolbar">−</button>',
+    '</div><div id="hint" class="hint">Save links first. Scrape them together when ready.</div></div>'
   ].join("");
   document.documentElement.appendChild(host);
-  const $ = id => dom.getElementById(id);
+  const $=id=>shadow.getElementById(id);
+  const dock=shadow.querySelector(".dock");
 
-  function notice(value, kind = "") {
-    $("hint").textContent = value;
-    $("hint").className = "hint " + kind;
+  function hint(text) { $("hint").textContent=text; }
+  function scheduleHighlight() {
+    if (refreshScheduled) return;
+    refreshScheduled=true;
+    requestAnimationFrame(()=>{refreshScheduled=false;highlight();});
   }
-  function send(type, extra = {}) {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ type, ...extra }, reply => {
-        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-        if (!reply?.ok) return reject(new Error(reply?.error || "Collector disconnected"));
-        resolve(reply.data);
-      });
+  function highlight() {
+    const ids=new Set(selected.map(x=>x.post_id));
+    document.querySelectorAll(CARD).forEach(node=>{
+      const post = parsePost(node.getAttribute("permalink") ||
+        node.getAttribute("data-permalink") ||
+        node.querySelector?.("a[href*='/comments/']")?.getAttribute("href"));
+      node.classList.toggle("rr-post-picked",!!post&&ids.has(post.post_id));
     });
   }
-  function counts(state) {
-    $("counts").textContent =
-      (state?.selected ?? saved.length) + " posts • " +
-      Number(state?.comments ?? 0).toLocaleString() + " comments";
-    $("current").style.display = parsePost(location.href) ? "" : "none";
-    $("copy").disabled = !saved.length;
-    $("retry").disabled = !saved.length;
+  function render() {
+    $("count").textContent=selected.length+" selected";
+    $("current").style.display=parsePost(location.href)?"":"none";
+    $("mode").textContent=selecting?"Finish selecting":"Select posts";
+    dock.classList.toggle("on",selecting);
+    document.documentElement.classList.toggle("rr-selection-on",selecting);
+    scheduleHighlight();
   }
-  async function collect(post) {
-    if (saved.some(item => item.post_id === post.post_id)) {
-      notice("Already selected. Open Results to see its status.", "good");
-      return;
-    }
-    saved.push({ post_id: post.post_id, url: post.url, title: post.title || post.post_id });
-    await chrome.storage.local.set({ selectedPosts: saved });
-    counts();
-    notice("Saved " + post.post_id + ". Collecting comments…", "good");
-    try {
-      const state = await send("QUEUE_POST", { post_id: post.post_id });
-      counts(state);
-      notice("Thread queued. You can click another post.", "good");
-    } catch (error) {
-      notice(error.message + " Link saved; use Queue all after connecting.", "error");
-    }
-  }
-  function selectClick(event) {
-    if (!selecting || host.contains(event.target)) return;
-    const post = fromClick(event.target);
-    if (!post) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    collect(post);
-  }
-  function mode(active) {
-    selecting = active;
-    $("toggle").textContent = selecting ? "Done selecting" : "Start selecting";
-    dom.querySelector(".panel").classList.toggle("active", selecting);
-    if (selecting) {
-      document.addEventListener("click", selectClick, true);
-      timer = setInterval(refresh, 3500);
-      notice("Selection mode ON — click a Reddit post to scrape it.", "good");
-      refresh();
+  async function togglePost(post) {
+    const existing=selected.findIndex(x=>x.post_id===post.post_id);
+    if(existing>=0) {
+      selected.splice(existing,1);
+      hint("Removed thread. "+selected.length+" saved.");
     } else {
-      document.removeEventListener("click", selectClick, true);
-      if (timer) clearInterval(timer);
-      timer = null;
-      notice("Selection mode OFF. Open Results to export the comments.");
+      selected.push({post_id:post.post_id,url:post.url,title:post.title});
+      hint("Saved! "+selected.length+" threads ready. Click Open scraper when done.");
     }
+    await chrome.storage.local.set({selectedPosts:selected});
+    render();
   }
-  async function refresh() {
-    try {
-      const state = await send("STATE");
-      counts(state);
-      if (state.running) notice(
-        "Reading " + (state.current || "queued threads") +
-        " • " + state.completed + " complete • " + state.queued + " waiting", "good");
-      else if (state.failed) notice("Some threads failed. Open Results for details.", "error");
-      else if (state.completed) notice(state.comments + " comments ready to export.", "good");
-    } catch (_) { /* Collector may be off while browsing. */ }
+  function clickHandler(event) {
+    if(!selecting||host.contains(event.target)) return;
+    const post=postFromNode(event.target);
+    if(!post) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    togglePost(post);
   }
-  $("toggle").addEventListener("click", () => mode(!selecting));
-  $("current").addEventListener("click", () => {
-    const post = parsePost(location.href);
-    if (post) collect({ ...post, title: document.title });
-  });
-  $("results").addEventListener("click", () => send("OPEN_RESULTS").catch(e => notice(e.message, "error")));
-  $("copy").addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(saved.map(item => item.url).join("\n"));
-      notice("Copied " + saved.length + " Reddit URLs.", "good");
-    } catch (_) { notice("Clipboard unavailable. Open Results to export.", "error"); }
-  });
-  $("retry").addEventListener("click", async () => {
-    notice("Queuing selected threads...");
-    let errors = 0;
-    for (const item of saved) {
-      try { await send("QUEUE_POST", { post_id: item.post_id }); } catch (_) { errors++; }
+  function setMode(next) {
+    selecting=Boolean(next);
+    if(selecting) {
+      document.addEventListener("click",clickHandler,true);
+      mutationObserver=new MutationObserver(scheduleHighlight);
+      mutationObserver.observe(document.body,{subtree:true,childList:true});
+      hint("Selection ON · Click posts to save their links. Click again to remove.");
+    } else {
+      document.removeEventListener("click",clickHandler,true);
+      mutationObserver?.disconnect();
+      mutationObserver=null;
+      hint("Links saved. Open scraper to review and extract comments.");
     }
-    notice(errors ? "Some threads could not be queued. Check the pairing code." : "All posts queued.",
-      errors ? "error" : "good");
-    refresh();
+    render();
+  }
+  $("mode").addEventListener("click",()=>setMode(!selecting));
+  $("current").addEventListener("click",()=>{
+    const post=parsePost(location.href);
+    if(post)togglePost({...post,title:document.title});
   });
-  $("stop").addEventListener("click", () => {
-    send("STOP").then(() => notice("Stopped future requests. Current request may finish.", "good"))
-      .catch(e => notice(e.message, "error"));
+  $("open").addEventListener("click",()=>chrome.runtime.sendMessage({type:"OPEN_RESULTS"},r=>{
+    if(!r?.ok) hint("Could not open dashboard. Open the extension menu instead.");
+  }));
+  $("copy").addEventListener("click",async()=>{
+    try{
+      await navigator.clipboard.writeText(selected.map(x=>x.url).join("\n"));
+      hint("Copied "+selected.length+" post links.");
+    }catch(_){hint("Clipboard unavailable. Open scraper to copy selected links.");}
   });
-  $("reset").addEventListener("click", async () => {
-    if (!confirm("Remove all saved links and comments from the local session?")) return;
-    try { await send("CLEAR"); } catch (_) { /* Still clear local selection. */ }
-    saved = [];
-    await chrome.storage.local.set({ selectedPosts: [] });
-    counts({ selected: 0, comments: 0 });
-    notice("Local selection cleared.", "good");
+  $("collapse").addEventListener("click",()=>{
+    dock.classList.toggle("collapsed");
+    $("collapse").textContent=dock.classList.contains("collapsed")?"+":"−";
   });
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && selecting) mode(false);
-  });
-  chrome.storage.onChanged.addListener((updates, area) => {
-    if (area === "local" && updates.selectedPosts) {
-      saved = updates.selectedPosts.newValue || [];
-      counts();
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&selecting)setMode(false);});
+  chrome.storage.onChanged.addListener((changes,area)=>{
+    if(area==="local"&&changes.selectedPosts){
+      selected=Array.isArray(changes.selectedPosts.newValue)?changes.selectedPosts.newValue:[];
+      render();
     }
   });
-  chrome.storage.local.get({ selectedPosts: [] }).then(data => {
-    saved = Array.isArray(data.selectedPosts) ? data.selectedPosts : [];
-    counts();
-    refresh();
+  chrome.storage.local.get({selectedPosts:[]}).then(values=>{
+    selected=Array.isArray(values.selectedPosts)?values.selectedPosts:[];
+    render();
   });
+  window.addEventListener("popstate",render);
 })();
