@@ -28,7 +28,7 @@ PAIRING_TOKEN = os.getenv("REDDIT_BRIDGE_TOKEN", "").strip() or secrets.token_ur
 POST_ID = re.compile(r"^[a-z0-9]{3,12}$", flags=re.I)
 COLUMNS = [
     "post_id", "post_title", "subreddit", "post_url", "reported_comment_count",
-    "comment_id", "parent_id", "comment", "score", "created_utc",
+    "comment_id", "author", "parent_id", "comment", "score", "created_utc",
     "comment_url", "themes", "theme_count"
 ]
 ALLOWED_SORTS = ("top", "best", "new", "controversial", "old")
